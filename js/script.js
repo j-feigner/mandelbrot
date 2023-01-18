@@ -6,8 +6,6 @@ function main() {
 
     resetCanvasBitmap(c);
 
-    //var test = mandelbrotSeq(new Complex(0, 0));
-
     mandelbrot(c, ctx);
 }
 
@@ -17,27 +15,27 @@ function mandelbrot(c, ctx) {
     var height = c.height;
 
     var viewportRect = {
-        x: -2.5,
-        y: 1.2,
-        w: 3.6,
+        x: -3.1,
+        y: 1.27,
+        w: 5,
         h: 2
     }
 
-    var canvasImageData = ctx.createImageData(width, height);
+    var canvasImageData = ctx.createImageData(2 * width, 2 * height);
 
-    var pixelStep = viewportRect.w / width;
+    var pixelStep = viewportRect.w / canvasImageData.width;
     var pixel = 0;
     for(var i = 0; i < canvasImageData.data.length; i += 4) {
         // Get complex coordinate of pixel given viewport bounds
-        var row = Math.floor(pixel / width);
-        var col = pixel % width;
+        var row = Math.floor(pixel / canvasImageData.width);
+        var col = pixel % canvasImageData.width;
         var x = viewportRect.x + (pixelStep * col);
         var y = viewportRect.y - (pixelStep * row);
 
         // Run Mandelbrot sequence on complex coordinate
         // Assign RGB value based on speed of divergence
         var c = new Complex(x, y);
-        var maxIterations = 400;
+        var maxIterations = 1000;
         var escapeNum = mandelbrotSeq(c, maxIterations);
         
         if(escapeNum != -1) {
@@ -60,12 +58,16 @@ function mandelbrot(c, ctx) {
         pixel++;
     }
 
-    ctx.putImageData(canvasImageData, 0, 0);
+    var renderCanvas = document.createElement("canvas");
+    renderCanvas.width = canvasImageData.width;
+    renderCanvas.height = canvasImageData.height;
+    renderCanvas.getContext("2d").putImageData(canvasImageData, 0 , 0);
+    ctx.drawImage(renderCanvas, 0, 0, width, height);
 }
 
 function mandelbrotSeq(c, maxIterations) {
     var step = new Complex(0, 0);
-    var maxMagnitude = 1000000;
+    var maxMagnitude = 1000;
     for(var j = 0; j < maxIterations; j++) {
         var zSquared = Complex.mult(step, step);
         var nextStep = Complex.add(zSquared, c);
@@ -81,23 +83,28 @@ function mandelbrotSeq(c, maxIterations) {
 }
 
 function getRGB(range, value) {
-    var categorySize = range / 2;
-    var category = Math.floor(value / categorySize);
+    var categorySize = 18;
+    var category = Math.floor(value / categorySize) % 3;
 
     var colorVal = (value % categorySize) / categorySize;
-    var easedColorVal = Math.floor((1 - Math.pow(2, -8 * colorVal)) * 255);
 
     if(category == 0) {
         return {
-            r: easedColorVal,
-            g: easedColorVal,
-            b: easedColorVal
+            r: 0,
+            g: 0,
+            b: Math.pow(colorVal, 1) * 255
         }
     } else if (category == 1) {
         return {
-            r: easedColorVal,
-            g: easedColorVal,
-            b: easedColorVal
+            r: Math.pow(colorVal, 1) * 255,
+            g: Math.pow(colorVal, 1) * 255,
+            b: 255
+        }
+    } else if (category == 2) {
+        return {
+            r: 255 - Math.pow(colorVal, 1) * 255,
+            g: 255 - Math.pow(colorVal, 1) * 255,
+            b: 255 - Math.pow(colorVal, 1) * 255
         }
     }
 }
@@ -105,22 +112,6 @@ function getRGB(range, value) {
 function resetCanvasBitmap(canvas) {
     canvas.width = canvas.offsetWidth;
     canvas.height = canvas.offsetHeight;
-}
-
-function tests() {
-    var c = new Complex(0.5, 0.5);
-    var nextStep = new Complex(0, 0);
-    for(var i = 0; i < 10; i++) {
-        var zSquared = Complex.mult(nextStep, nextStep);
-        var seqStep = Complex.add(zSquared, c);
-        var magnitude = Complex.mag(seqStep);
-        if(magnitude > 10) {
-            return alert("Not in set!");
-        }
-        nextStep = seqStep;
-    }
-
-    return alert("In set!");
 }
 
 class Complex {
