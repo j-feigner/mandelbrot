@@ -17,3 +17,37 @@ html, body, #site-wrapper {
     height: 100%;
     background-color: rgb(255, 0, 0);
 }
+
+#ui {
+    position: fixed;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5em;
+    top: 1em;
+    left: 1em;
+    background-color: white;
+    padding: 1em;
+    border-radius: 5px;
+}
+
+#ui #submit button {
+    background-color: rgb(199, 65, 60);
+    border: none;
+    text-decoration: none;
+    padding: 0.5em;
+    aspect-ratio: 6;
+    color: white;
+    border-radius: 500px;
+    font-size: 1.2em;
+    transition: .2s;
+    cursor: pointer;
+    margin-top: 0.5em;
+}
+
+#ui #submit button:hover { 
+    background-color: rgb(145, 28, 28);
+}
+
+#ui #submit button:active { 
+    background-color: rgb(80, 24, 22);
+}
