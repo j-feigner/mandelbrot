@@ -6,106 +6,6 @@ function main() {
     app.render();
 }
 
-function mandelbrot(c, ctx) {
-    // Dimensions of viewport in pixels
-    var width = c.width;
-    var height = c.height;
-
-    var viewportRect = {
-        x: -3.1,
-        y: 1.27,
-        w: 5,
-        h: 2
-    }
-
-    var canvasImageData = ctx.createImageData(2 * width, 2 * height);
-
-    var pixelStep = viewportRect.w / canvasImageData.width;
-    var pixel = 0;
-    for(var i = 0; i < canvasImageData.data.length; i += 4) {
-        // Get complex coordinate of pixel given viewport bounds
-        var row = Math.floor(pixel / canvasImageData.width);
-        var col = pixel % canvasImageData.width;
-        var x = viewportRect.x + (pixelStep * col);
-        var y = viewportRect.y - (pixelStep * row);
-
-        // Run Mandelbrot sequence on complex coordinate
-        // Assign RGB value based on speed of divergence
-        var c = new Complex(x, y);
-        var maxIterations = 100;
-        var escapeNum = mandelbrotSeq(c, maxIterations);
-        
-        if(escapeNum != -1) {
-            try {
-                var color = getRGB(escapeNum);
-                canvasImageData.data[i + 0] = color.r;
-                canvasImageData.data[i + 1] = color.g;
-                canvasImageData.data[i + 2] = color.b;
-                canvasImageData.data[i + 3] = 255;
-            } catch (error) {
-                console.log(error + "Attempted escape number: " + escapeNum);
-            }
-        } else {
-            canvasImageData.data[i + 0] = 0;
-            canvasImageData.data[i + 1] = 0;
-            canvasImageData.data[i + 2] = 0;
-            canvasImageData.data[i + 3] = 255;
-        }
-
-        pixel++;
-    }
-
-    var renderCanvas = document.createElement("canvas");
-    renderCanvas.width = canvasImageData.width;
-    renderCanvas.height = canvasImageData.height;
-    renderCanvas.getContext("2d").putImageData(canvasImageData, 0 , 0);
-    ctx.drawImage(renderCanvas, 0, 0, width, height);
-}
-
-function mandelbrotSeq(c, maxIterations) {
-    var step = c;
-    var maxMagnitude = 10;
-    for(var j = 0; j < maxIterations; j++) {
-        var zSquared = Complex.mult(step, step);
-        var nextStep = Complex.add(zSquared, c);
-        var mag = Complex.mag(nextStep);
-        
-        if(mag > maxMagnitude) {
-            return j;
-        } else {
-            step = nextStep;
-        }
-    }
-    return -1;
-}
-
-function getRGB(value) {
-    var categorySize = 16;
-    var category = Math.floor(value / categorySize) % 3;
-
-    var colorVal = (value % categorySize) / categorySize;
-
-    if(category == 0) {
-        return {
-            r: 0,
-            g: 0,
-            b: Math.pow(colorVal, 1) * 255
-        }
-    } else if (category == 1) {
-        return {
-            r: Math.pow(colorVal, 1) * 255,
-            g: Math.pow(colorVal, 1) * 255,
-            b: 255
-        }
-    } else if (category == 2) {
-        return {
-            r: 255 - Math.pow(colorVal, 1) * 255,
-            g: 255 - Math.pow(colorVal, 1) * 255,
-            b: 255 - Math.pow(colorVal, 1) * 255
-        }
-    }
-}
-
 class Complex {
     constructor(a, b) {
         this.r = a;
@@ -146,6 +46,8 @@ class Mandelbrot {
         };
 
         this.maxIterations = 100;
+        this.colorWidth = 16;
+        this.numColors = 3;
     }
 
     // Utility called by constructor for setting canvas widths according 
@@ -154,6 +56,7 @@ class Mandelbrot {
         c.height = h;
     }
 
+    // Renders Mandelbrot set to display canvas
     render() {
         // Create blank image data to size of rendering canvas
         var imageData = this.rCtx.createImageData(this.renderCanvas.width, this.renderCanvas.height);
@@ -172,18 +75,11 @@ class Mandelbrot {
             // Run Mandelbrot sequence on complex coordinate
             // Assign RGB value based on speed of divergence
             var escapeNum = this.iterator(coord, coord, this.maxIterations);
-            if(escapeNum != -1) {
-                var color = getRGB(escapeNum);
-                imageData.data[i + 0] = color.r;
-                imageData.data[i + 1] = color.g;
-                imageData.data[i + 2] = color.b;
-                imageData.data[i + 3] = 255;
-            } else {
-                imageData.data[i + 0] = 0;
-                imageData.data[i + 1] = 0;
-                imageData.data[i + 2] = 0;
-                imageData.data[i + 3] = 255;
-            }
+            var color = getRGB(escapeNum);
+            imageData.data[i + 0] = color.r;
+            imageData.data[i + 1] = color.g;
+            imageData.data[i + 2] = color.b;
+            imageData.data[i + 3] = 255;
 
             pixel++;
         }
@@ -193,6 +89,9 @@ class Mandelbrot {
         this.ctx.drawImage(this.renderCanvas, 0, 0, this.canvas.width, this.canvas.height); 
     }
 
+    // Main loop for render, called on every pixel
+    // Returns iteration number if magnitude reaches breakout within maxIterations
+    // If value does not reach breakout in maxIterations (and thus is in the set), returns -1
     iterator(z, c, max) {
         var step = z;
         const add_const = c;
@@ -209,6 +108,42 @@ class Mandelbrot {
             }
         }
         return -1;
+    }
+
+    // Returns RGB value according to escape number of pixel
+    // Return object format: {r: , g: , b: }
+    getRGB(value) {
+        // Value IS in Mandelbrot set
+        if(value === -1) {
+            return {
+                r: 0,
+                g: 0,
+                b: 0
+            }
+        }
+
+        var category = Math.floor(value / this.colorWidth) % this.numColors;
+        var colorVal = (value % this.colorWidth) / this.colorWidth;
+    
+        if(category == 0) {
+            return {
+                r: 0,
+                g: 0,
+                b: Math.pow(colorVal, 1) * 255
+            }
+        } else if (category == 1) {
+            return {
+                r: Math.pow(colorVal, 1) * 255,
+                g: Math.pow(colorVal, 1) * 255,
+                b: 255
+            }
+        } else if (category == 2) {
+            return {
+                r: 255 - Math.pow(colorVal, 1) * 255,
+                g: 255 - Math.pow(colorVal, 1) * 255,
+                b: 255 - Math.pow(colorVal, 1) * 255
+            }
+        }
     }
 }
 
