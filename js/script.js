@@ -1,12 +1,9 @@
 window.onload = main;
 
 function main() {
-    var c = document.querySelector("#fractal-canvas");
-    var ctx = c.getContext("2d");
+    var app = new Mandelbrot();
 
-    resetCanvasBitmap(c);
-
-    mandelbrot(c, ctx);
+    app.render();
 }
 
 function mandelbrot(c, ctx) {
@@ -20,12 +17,6 @@ function mandelbrot(c, ctx) {
         w: 5,
         h: 2
     }
-
-    window.addEventListener("keydown", e => {
-        if(e.key = "ArrowLeft") {
-            viewportRect
-        }
-    })
 
     var canvasImageData = ctx.createImageData(2 * width, 2 * height);
 
@@ -115,19 +106,6 @@ function getRGB(value) {
     }
 }
 
-function resetCanvasBitmap(canvas) {
-    canvas.width = canvas.offsetWidth;
-    canvas.height = canvas.offsetHeight;
-}
-
-function setKeyEvents() {
-    window.addEventListener("keydown", e => {
-        if(e.key = "ArrowLeft") {
-
-        }
-    })
-}
-
 class Complex {
     constructor(a, b) {
         this.r = a;
@@ -153,67 +131,88 @@ class Mandelbrot {
     constructor() {
         this.canvas = document.querySelector("#fractal-canvas");
         this.ctx = this.canvas.getContext("2d");
+        this.renderCanvas = document.createElement("canvas");
+        this.rCtx = this.renderCanvas.getContext("2d");
+        this.renderScaleFactor = 2;
+
+        // Initial sizing for canvases
+        this.resizeCanvas(this.canvas, this.canvas.offsetWidth, this.canvas.offsetHeight);
+        this.resizeCanvas(this.renderCanvas, this.canvas.width * this.renderScaleFactor, this.canvas.height * this.renderScaleFactor);
 
         this.viewportCoords = {
-            x: 0,
-            y: 0,
-            width: 0
+            x: -3.1,
+            y: 1.27,
+            w: 5
         };
+
+        this.maxIterations = 100;
+    }
+
+    // Utility called by constructor for setting canvas widths according 
+    resizeCanvas(c, w, h) {
+        c.width = w;
+        c.height = h;
     }
 
     render() {
-        // Dimensions of viewport in pixels
-        var width = c.width;
-        var height = c.height;
+        // Create blank image data to size of rendering canvas
+        var imageData = this.rCtx.createImageData(this.renderCanvas.width, this.renderCanvas.height);
 
-        var viewportRect = {
-            x: -3.1,
-            y: 1.27,
-            w: 5,
-            h: 2
-        }
-
-        var canvasImageData = ctx.createImageData(2 * width, 2 * height);
-
-        var pixelStep = viewportRect.w / canvasImageData.width;
-        var pixel = 0;
-        for(var i = 0; i < canvasImageData.data.length; i += 4) {
+        var pixelStep = this.viewportCoords.w / imageData.width;
+        var pixel = 0; // Pixel counter iterates by 1 
+                       // Image data 1D array iterates by 4
+        for(var i = 0; i < imageData.data.length; i += 4) {
             // Get complex coordinate of pixel given viewport bounds
-            var row = Math.floor(pixel / canvasImageData.width);
-            var col = pixel % canvasImageData.width;
-            var x = viewportRect.x + (pixelStep * col);
-            var y = viewportRect.y - (pixelStep * row);
+            var row = Math.floor(pixel / imageData.width);
+            var col = pixel % imageData.width;
+            var x = this.viewportCoords.x + (pixelStep * col);
+            var y = this.viewportCoords.y - (pixelStep * row);
+            var coord = new Complex(x, y);
 
             // Run Mandelbrot sequence on complex coordinate
             // Assign RGB value based on speed of divergence
-            var c = new Complex(x, y);
-            var maxIterations = 1000;
-            var escapeNum = mandelbrotSeq(c, maxIterations);
-            
+            var escapeNum = this.iterator(coord, coord, this.maxIterations);
             if(escapeNum != -1) {
-                try {
-                    var color = getRGB(escapeNum);
-                    canvasImageData.data[i + 0] = color.r;
-                    canvasImageData.data[i + 1] = color.g;
-                    canvasImageData.data[i + 2] = color.b;
-                    canvasImageData.data[i + 3] = 255;
-                } catch (error) {
-                    console.log(error + "Attempted escape number: " + escapeNum);
-                }
+                var color = getRGB(escapeNum);
+                imageData.data[i + 0] = color.r;
+                imageData.data[i + 1] = color.g;
+                imageData.data[i + 2] = color.b;
+                imageData.data[i + 3] = 255;
             } else {
-                canvasImageData.data[i + 0] = 0;
-                canvasImageData.data[i + 1] = 0;
-                canvasImageData.data[i + 2] = 0;
-                canvasImageData.data[i + 3] = 255;
+                imageData.data[i + 0] = 0;
+                imageData.data[i + 1] = 0;
+                imageData.data[i + 2] = 0;
+                imageData.data[i + 3] = 255;
             }
 
             pixel++;
         }
 
-        var renderCanvas = document.createElement("canvas");
-        renderCanvas.width = canvasImageData.width;
-        renderCanvas.height = canvasImageData.height;
-        renderCanvas.getContext("2d").putImageData(canvasImageData, 0 , 0);
-        ctx.drawImage(renderCanvas, 0, 0, width, height); 
+        // Draw to render canvas, then draw to display canvas
+        this.renderCanvas.getContext("2d").putImageData(imageData, 0 , 0);
+        this.ctx.drawImage(this.renderCanvas, 0, 0, this.canvas.width, this.canvas.height); 
     }
+
+    iterator(z, c, max) {
+        var step = z;
+        const add_const = c;
+        var maxMagnitude = 10;
+        for(var j = 0; j < max; j++) {
+            var zSquared = Complex.mult(step, step);
+            var nextStep = Complex.add(zSquared, add_const);
+            var mag = Complex.mag(nextStep);
+            
+            if(mag > maxMagnitude) {
+                return j;
+            } else {
+                step = nextStep;
+            }
+        }
+        return -1;
+    }
+}
+
+function resetCanvasBitmap(canvas, w, h) {
+    canvas.width = w;
+    canvas.height = h;
 }
