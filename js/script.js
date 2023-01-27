@@ -39,15 +39,35 @@ class Mandelbrot {
         this.resizeCanvas(this.canvas, this.canvas.offsetWidth, this.canvas.offsetHeight);
         this.resizeCanvas(this.renderCanvas, this.canvas.width * this.renderScaleFactor, this.canvas.height * this.renderScaleFactor);
 
+        this.ui = document.querySelector("#ui");
+        this.renderInput = ui.querySelector("#render-scale");
+        this.coordOutput = ui.querySelector("#coordinate-output");
+        this.renderButton = ui.querySelector("#submit");
+
+        // In actual coordinate space
         this.viewportCoords = {
             x: -3.1,
             y: 1.27,
             w: 5
         };
 
+        // In pixels
+        this.displayOffset = {
+            x: 0,
+            y: 0
+        }
+
+        // Variable for converting between coordinate space and pixel space
+        this.pixelFactor = this.viewportCoords.w / this.canvas.width;
+
         this.maxIterations = 100;
         this.colorWidth = 16;
         this.numColors = 3;
+
+        this.isRendering = false;
+        this.isDragging = false;
+
+        this.initEvents();
     }
 
     // Utility called by constructor for setting canvas widths according 
@@ -56,12 +76,46 @@ class Mandelbrot {
         c.height = h;
     }
 
+    refreshDisplay() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.drawImage(this.renderCanvas, 
+            this.displayOffset.x, 
+            this.displayOffset.y, 
+            this.canvas.width, 
+            this.canvas.height
+        );
+    }
+
+    initEvents() {
+        this.canvas.addEventListener("mousedown", e => {this.isDragging = true});
+        this.canvas.addEventListener("mouseup", e => {this.isDragging = false});
+        this.canvas.addEventListener("mousemove", e => {
+            if(this.isDragging && !this.isRendering) {
+                this.displayOffset.x += e.movementX;
+                this.displayOffset.y += e.movementY;
+                this.refreshDisplay();
+            }
+        })
+
+        this.renderButton.addEventListener("click", e => {
+            if(!this.isRendering) {
+                this.viewportCoords.x -= this.displayOffset.x * this.pixelFactor;
+                this.viewportCoords.y += this.displayOffset.y * this.pixelFactor;
+                this.displayOffset = {x: 0, y: 0};
+                this.render();
+            }
+        })
+    }
+
     // Renders Mandelbrot set to display canvas
     render() {
+        this.isRendering = true;
+
         // Create blank image data to size of rendering canvas
         var imageData = this.rCtx.createImageData(this.renderCanvas.width, this.renderCanvas.height);
 
         var pixelStep = this.viewportCoords.w / imageData.width;
+
         var pixel = 0; // Pixel counter iterates by 1 
                        // Image data 1D array iterates by 4
         for(var i = 0; i < imageData.data.length; i += 4) {
@@ -75,7 +129,7 @@ class Mandelbrot {
             // Run Mandelbrot sequence on complex coordinate
             // Assign RGB value based on speed of divergence
             var escapeNum = this.iterator(coord, coord, this.maxIterations);
-            var color = getRGB(escapeNum);
+            var color = this.getRGB(escapeNum);
             imageData.data[i + 0] = color.r;
             imageData.data[i + 1] = color.g;
             imageData.data[i + 2] = color.b;
@@ -87,6 +141,8 @@ class Mandelbrot {
         // Draw to render canvas, then draw to display canvas
         this.renderCanvas.getContext("2d").putImageData(imageData, 0 , 0);
         this.ctx.drawImage(this.renderCanvas, 0, 0, this.canvas.width, this.canvas.height); 
+
+        this.isRendering = false;
     }
 
     // Main loop for render, called on every pixel
@@ -114,13 +170,7 @@ class Mandelbrot {
     // Return object format: {r: , g: , b: }
     getRGB(value) {
         // Value IS in Mandelbrot set
-        if(value === -1) {
-            return {
-                r: 0,
-                g: 0,
-                b: 0
-            }
-        }
+        if(value === -1) {return {r: 0, g: 0, b: 0}}
 
         var category = Math.floor(value / this.colorWidth) % this.numColors;
         var colorVal = (value % this.colorWidth) / this.colorWidth;
