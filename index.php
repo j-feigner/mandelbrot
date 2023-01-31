@@ -18,9 +18,10 @@
             <div id="ui">
                 <div id="coordinate-output">
                     <div id="center-coord">
-                        <label>Center Coordinates: ( , )</label> 
+                        <label></label> 
                     </div>
-                    <div id="view-width">Viewport Width: 3</div>
+                    <div id="offset-output"></div>
+                    <div id="scale-output"></div>
                 </div>
                 <div id="render-scale">
                     <span>Render Quality: </span>
@@ -44,7 +45,7 @@
                     </label>
                 </div>
                 <div id="submit">
-                    <button>Go!</button>
+                    <button>Render</button>
                 </div>
             </div>
         </div>

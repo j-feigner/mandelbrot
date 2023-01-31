@@ -32,8 +32,10 @@ class Mandelbrot {
         this.canvas = document.querySelector("#fractal-canvas");
         this.ctx = this.canvas.getContext("2d");
         this.renderCanvas = document.createElement("canvas");
-        this.rCtx = this.renderCanvas.getContext("2d");
-        this.renderScaleFactor = 2;
+        this.rctx = this.renderCanvas.getContext("2d");
+        this.renderScaleFactor = 1;
+
+        this.displayMatrix;
 
         // Initial sizing for canvases
         this.resizeCanvas(this.canvas, this.canvas.offsetWidth, this.canvas.offsetHeight);
@@ -41,24 +43,24 @@ class Mandelbrot {
 
         this.ui = document.querySelector("#ui");
         this.renderInput = ui.querySelector("#render-scale");
-        this.coordOutput = ui.querySelector("#coordinate-output");
+        this.coordOutput = ui.querySelector("#center-coord");
+        this.offsetOutput = ui.querySelector("#offset-output");
+        this.scaleOutput = ui.querySelector("#scale-output");
         this.renderButton = ui.querySelector("#submit");
 
-        // In actual coordinate space
+        // In coordinate space
         this.viewportCoords = {
             x: -3.1,
             y: 1.27,
             w: 5
         };
 
-        // In pixels
-        this.displayOffset = {
-            x: 0,
-            y: 0
-        }
+        this.mouseCoords = new DOMPoint();
 
         // Variable for converting between coordinate space and pixel space
         this.pixelFactor = this.viewportCoords.w / this.canvas.width;
+
+        this.initialWidth = 5;
 
         this.maxIterations = 100;
         this.colorWidth = 16;
@@ -68,6 +70,8 @@ class Mandelbrot {
         this.isDragging = false;
 
         this.initEvents();
+
+        this.coordOutput.innerHTML = "(" + this.viewportCoords.x + " , " + this.viewportCoords.y + ")";
     }
 
     // Utility called by constructor for setting canvas widths according 
@@ -77,30 +81,57 @@ class Mandelbrot {
     }
 
     refreshDisplay() {
+        this.ctx.save();
+        this.ctx.setTransform(1,0,0,1,0,0);
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this.ctx.drawImage(this.renderCanvas, 
-            this.displayOffset.x, 
-            this.displayOffset.y, 
-            this.canvas.width, 
-            this.canvas.height
-        );
+        this.ctx.restore();
+        this.ctx.drawImage(this.renderCanvas, 0, 0, this.canvas.width, this.canvas.height);
     }
 
     initEvents() {
         this.canvas.addEventListener("mousedown", e => {this.isDragging = true});
         this.canvas.addEventListener("mouseup", e => {this.isDragging = false});
         this.canvas.addEventListener("mousemove", e => {
+            this.mouseCoords.x = e.offsetX;
+            this.mouseCoords.y = e.offsetY;
+
+            this.offsetOutput.innerHTML = this.mouseCoords.x + " , " + this.mouseCoords.y;
+
             if(this.isDragging && !this.isRendering) {
-                this.displayOffset.x += e.movementX;
-                this.displayOffset.y += e.movementY;
+                var scale = this.ctx.getTransform().a;
+                this.ctx.translate(e.movementX / scale, e.movementY / scale);
+
+                // Update coordinate-space viewport
+                this.viewportCoords.x -= e.movementX * this.pixelFactor;
+                this.viewportCoords.y += e.movementY * this.pixelFactor;
+
+                this.coordOutput.innerHTML = "(" + this.ctx.getTransform().e + " , " + this.ctx.getTransform().f + ")";
+
                 this.refreshDisplay();
             }
         })
 
+        this.canvas.addEventListener("wheel", e => {
+            var scale = this.ctx.getTransform().a;
+            var scaleFactor;
+            // Change scale of image
+            e.deltaY < 0 ? scaleFactor = 1.1 : scaleFactor = 0.9;
+
+            var matrix = this.ctx.getTransform().invertSelf();
+
+            var mousePos = this.mouseCoords.matrixTransform(matrix);
+
+            this.ctx.translate(mousePos.x, mousePos.y);
+            this.ctx.scale(scaleFactor, scaleFactor);
+            this.ctx.translate(-mousePos.x, -mousePos.y);
+
+            this.scaleOutput.innerHTML = scale;
+
+            this.refreshDisplay();
+        })
+
         this.renderButton.addEventListener("click", e => {
             if(!this.isRendering) {
-                this.viewportCoords.x -= this.displayOffset.x * this.pixelFactor;
-                this.viewportCoords.y += this.displayOffset.y * this.pixelFactor;
                 this.displayOffset = {x: 0, y: 0};
                 this.render();
             }
@@ -112,7 +143,7 @@ class Mandelbrot {
         this.isRendering = true;
 
         // Create blank image data to size of rendering canvas
-        var imageData = this.rCtx.createImageData(this.renderCanvas.width, this.renderCanvas.height);
+        var imageData = this.rctx.createImageData(this.renderCanvas.width, this.renderCanvas.height);
 
         var pixelStep = this.viewportCoords.w / imageData.width;
 
@@ -140,7 +171,7 @@ class Mandelbrot {
 
         // Draw to render canvas, then draw to display canvas
         this.renderCanvas.getContext("2d").putImageData(imageData, 0 , 0);
-        this.ctx.drawImage(this.renderCanvas, 0, 0, this.canvas.width, this.canvas.height); 
+        this.refreshDisplay(); 
 
         this.isRendering = false;
     }
@@ -151,7 +182,7 @@ class Mandelbrot {
     iterator(z, c, max) {
         var step = z;
         const add_const = c;
-        var maxMagnitude = 10;
+        const maxMagnitude = 10;
         for(var j = 0; j < max; j++) {
             var zSquared = Complex.mult(step, step);
             var nextStep = Complex.add(zSquared, add_const);
