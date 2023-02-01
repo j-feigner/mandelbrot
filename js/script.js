@@ -35,8 +35,6 @@ class Mandelbrot {
         this.rctx = this.renderCanvas.getContext("2d");
         this.renderScaleFactor = 1;
 
-        this.displayMatrix;
-
         // Initial sizing for canvases
         this.resizeCanvas(this.canvas, this.canvas.offsetWidth, this.canvas.offsetHeight);
         this.resizeCanvas(this.renderCanvas, this.canvas.width * this.renderScaleFactor, this.canvas.height * this.renderScaleFactor);
@@ -48,12 +46,12 @@ class Mandelbrot {
         this.scaleOutput = ui.querySelector("#scale-output");
         this.renderButton = ui.querySelector("#submit");
 
-        // In coordinate space
         this.viewportCoords = {
             x: -3.1,
             y: 1.27,
             w: 5
-        };
+        }
+        this.resetComplexTransform();
 
         this.mouseCoords = new DOMPoint();
 
@@ -62,7 +60,7 @@ class Mandelbrot {
 
         this.initialWidth = 5;
 
-        this.maxIterations = 100;
+        this.maxIterations = 500;
         this.colorWidth = 16;
         this.numColors = 3;
 
@@ -70,8 +68,6 @@ class Mandelbrot {
         this.isDragging = false;
 
         this.initEvents();
-
-        this.coordOutput.innerHTML = "(" + this.viewportCoords.x + " , " + this.viewportCoords.y + ")";
     }
 
     // Utility called by constructor for setting canvas widths according 
@@ -89,19 +85,21 @@ class Mandelbrot {
     }
 
     initEvents() {
+        // Set dragging flag on mouse click, translate display canvas on drag
         this.canvas.addEventListener("mousedown", e => {this.isDragging = true});
         this.canvas.addEventListener("mouseup", e => {this.isDragging = false});
         this.canvas.addEventListener("mousemove", e => {
             this.mouseCoords.x = e.offsetX;
             this.mouseCoords.y = e.offsetY;
 
-            this.offsetOutput.innerHTML = this.mouseCoords.x + " , " + this.mouseCoords.y;
+            var complexCoords = this.getComplexCoords(this.mouseCoords);
+
+            this.offsetOutput.innerHTML = complexCoords.x + " , " + complexCoords.y;
 
             if(this.isDragging && !this.isRendering) {
                 var scale = this.ctx.getTransform().a;
                 this.ctx.translate(e.movementX / scale, e.movementY / scale);
 
-                // Update coordinate-space viewport
                 this.viewportCoords.x -= e.movementX * this.pixelFactor;
                 this.viewportCoords.y += e.movementY * this.pixelFactor;
 
@@ -114,19 +112,21 @@ class Mandelbrot {
         this.canvas.addEventListener("wheel", e => {
             var scale = this.ctx.getTransform().a;
             var scaleFactor;
-            // Change scale of image
+
+            // Change scaleFactor of image
             e.deltaY < 0 ? scaleFactor = 1.1 : scaleFactor = 0.9;
 
+            // Get transformation matrix for display canvas (note inverse)
             var matrix = this.ctx.getTransform().invertSelf();
-
+            // Convert mouse position to canvas space
             var mousePos = this.mouseCoords.matrixTransform(matrix);
-
+            // Zoom to cursor position (translate, scale, translate)
             this.ctx.translate(mousePos.x, mousePos.y);
             this.ctx.scale(scaleFactor, scaleFactor);
             this.ctx.translate(-mousePos.x, -mousePos.y);
 
             this.scaleOutput.innerHTML = scale;
-
+            this.coordOutput.innerHTML = "(" + this.ctx.getTransform().e + " , " + this.ctx.getTransform().f + ")";
             this.refreshDisplay();
         })
 
@@ -141,6 +141,21 @@ class Mandelbrot {
     // Renders Mandelbrot set to display canvas
     render() {
         this.isRendering = true;
+
+        const displayMatrix = this.ctx.getTransform();
+
+        // Find coordinate in complex space of screen origin
+        var complexOrigin = this.getComplexCoords(new DOMPoint(0, 0));
+
+        // Change viewport values for new scale
+        this.viewportCoords.x = complexOrigin.x;
+        this.viewportCoords.y = -complexOrigin.y;
+        this.viewportCoords.w /= displayMatrix.a;
+
+        // Reset display canvas transform and complex transform
+        this.ctx.resetTransform();
+        this.resetComplexTransform();
+
 
         // Create blank image data to size of rendering canvas
         var imageData = this.rctx.createImageData(this.renderCanvas.width, this.renderCanvas.height);
@@ -225,6 +240,24 @@ class Mandelbrot {
                 b: 255 - Math.pow(colorVal, 1) * 255
             }
         }
+    }
+
+    getComplexCoords(mouseCoords) {
+        const displayMatrix = this.ctx.getTransform().invertSelf();
+
+        var imageOrigin = mouseCoords.matrixTransform(displayMatrix);
+        var complexOrigin = imageOrigin.matrixTransform(this.complexPlaneTransform);
+
+        return complexOrigin;
+    }
+
+    resetComplexTransform() {
+        this.complexScaleFactor = this.viewportCoords.w / this.canvas.width;
+        this.complexPlaneTransform = new DOMMatrix([
+            this.complexScaleFactor, 0, 0, 
+            this.complexScaleFactor, 
+            this.viewportCoords.x, 
+            -this.viewportCoords.y]);
     }
 }
 
