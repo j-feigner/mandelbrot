@@ -52,3 +52,15 @@ html, body, #site-wrapper {
 #ui #submit button:active { 
     background-color: rgb(80, 24, 22);
 }
+
+#ui #offset-output {
+    display: flex;
+    flex-direction: column;
+}
+
+#ui #offset-output span {
+    display: inline-block;
+    padding: 0em 1em 0em 1em;
+    text-align: left;
+    min-width: 240px;
+}

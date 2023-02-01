@@ -17,20 +17,29 @@
             <canvas id="fractal-canvas"></canvas>
             <div id="ui">
                 <div id="coordinate-output">
-                    <div id="center-coord">
-                        <label></label> 
+                    <div id="offset-output">
+                        <div>
+                            <label>Mouse X: </label>
+                            <span id="oo-x"></span>
+                        </div>
+                        <div>
+                            <label>Mouse Y: </label>
+                            <span id="oo-y"></span>
+                        </div>
                     </div>
-                    <div id="offset-output"></div>
-                    <div id="scale-output"></div>
+                    <div id="scale-output">
+                        <label>Zoom: </label>
+                        <span id="scale"></span>
+                    </div>
                 </div>
                 <div id="render-scale">
                     <span>Render Quality: </span>
                     <label>
-                        <input type="radio" name="render" value="1">
+                        <input type="radio" name="render" value="1" checked="checked">
                         1x
                     </label>
                     <label>
-                        <input type="radio" name="render" value="2" checked="checked">
+                        <input type="radio" name="render" value="2">
                         2x
                     </label>
                     <label>
@@ -41,7 +50,7 @@
                 <div id="iterations">
                     <label>
                         Iterations:
-                        <input type="number" name="iteration-count" min="1" max="5000" value="100">
+                        <input type="number" name="iteration-count" min="1" max="2000" value="250">
                     </label>
                 </div>
                 <div id="submit">
